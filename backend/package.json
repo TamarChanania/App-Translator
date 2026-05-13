@@ -1,13 +1,14 @@
 {
-"name": "translation-backend",
-"type": "module",
-"scripts": {
-"start": "node server.js"
-},
-"dependencies": {
-"cors": "^2.8.5",
-"express": "^4.18.2",
-"node-fetch": "^2.6.7",
-"pg": "^8.11.0"
-}
+  "name": "translation-backend",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test server.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.7",
+    "pg": "^8.11.0"
+  }
 }
