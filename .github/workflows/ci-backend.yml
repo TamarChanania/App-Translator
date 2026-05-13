@@ -33,7 +33,8 @@ jobs:
 
       - name: Test summary
         run: echo "Unit tests passed!"
-        build:
+
+  build:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: unit-tests
