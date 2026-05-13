@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: translator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: translator
+  template:
+    metadata:
+      labels:
+        app: translator
+    spec:
+      containers:
+      - name: translator
+        image: libretranslate/libretranslate:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: LT_LOAD_ONLY
+          value: "en,he"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: translator-service
+spec:
+  selector:
+    app: translator
+  ports:
+  - port: 5000
+    targetPort: 5000
