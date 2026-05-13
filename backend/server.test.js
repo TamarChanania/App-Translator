@@ -78,7 +78,7 @@ describe('Database Query Format Tests', () => {
     
     assert.ok(sourceText);
     assert.ok(targetLang);
-    assert.ok(translatedText);ls
+    assert.ok(translatedText);
   });
 
   it('should validate query parameters are strings', () => {
