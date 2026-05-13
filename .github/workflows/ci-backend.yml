@@ -56,3 +56,28 @@ jobs:
         run: |
           docker run --rm tamar746968/app-translator-backend:${{ github.sha }} node --version
           echo "Docker image works!"
+
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/ci/cd' ||
+      github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests with Docker Compose
+        run: |
+          docker compose -f docker-compose.test.yml up \
+            --abort-on-container-exit \
+            --exit-code-from backend-test
+
+      - name: Show logs
+        if: always()
+        run: docker compose -f docker-compose.test.yml logs
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
