@@ -55,12 +55,25 @@ app.post('/translate', async (req, res) => {
   }
 });
 
-app.get('/history', async (req, res) => {
+app.get('/health', async (req, res) => {
   try {
-    const r = await pool.query('SELECT source_text, translated_text FROM translations ORDER BY id DESC LIMIT 10');
-    res.json(r.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch history' });
+    // אתגר: נבדוק שהחיבור ל-PostgreSQL באמת חי ומגיב
+    await pool.query('SELECT 1');
+    
+    // אם הבדיקה הצליחה, נחזיר סטטוס 200 (הצלחה) לקוברנטיס
+    res.status(200).json({ 
+      status: 'ok', 
+      database: 'connected',
+      timestamp: new Date() 
+    });
+  } catch (dbErr) {
+    // אם הדאטה-בייס נפל, נחזיר סטטוס 500 כדי שקוברנטיס ידע שהפוד לא מוכן לקבל תעבורה
+    console.error('Health check failed - Database unreachable:', dbErr.message);
+    res.status(500).json({ 
+      status: 'error', 
+      database: 'unreachable',
+      error: dbErr.message 
+    });
   }
 });
 
@@ -69,3 +82,4 @@ const PORT = 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Backend running on port ${PORT}`);
 });
+ 
