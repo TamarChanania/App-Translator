@@ -11,6 +11,7 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/ci-frontend.yaml'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -97,6 +98,10 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git tag ${{ steps.version.outputs.version }}
-          git push origin ${{ steps.version.outputs.version }}
-          echo "✅ Tag ${{ steps.version.outputs.version }} created!"
+          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "⚠️ Tag ${{ steps.version.outputs.version }} already exists, skipping."
+          else
+            git tag ${{ steps.version.outputs.version }}
+            git push origin ${{ steps.version.outputs.version }}
+            echo "✅ Tag ${{ steps.version.outputs.version }} created!"
+          fi
