@@ -64,4 +64,10 @@ describe('Database Integration Tests', () => {
     assert.strictEqual(result.rows.length, 1);
     assert.strictEqual(result.rows[0].source_text, 'Test');
   });
+  app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString() 
+  });
+});
 });
