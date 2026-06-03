@@ -1,9 +1,9 @@
 backend:
   image: tamar746968/app-translator-backend:latest
+  replicas: 1                     # שנה ל-replicas בהתאם למה שהטמפלייט מחפש
   port: 3001
-  replicaCount: 1
-  # env:                    
-  #   translatorHost: "translator-service" 
+  env:                            # להוריד את הסולמית מתחילת השורה!
+    translatorHost: "translator-service" # להוריד את הסולמית מתחילת השורה!
 
 frontend:
   image: tamar746968/app-translator-frontend:latest 

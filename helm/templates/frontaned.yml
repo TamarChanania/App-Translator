@@ -32,7 +32,7 @@ spec:
 
         image: {{ .Values.frontend.image }}
 
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
 
         ports:
 

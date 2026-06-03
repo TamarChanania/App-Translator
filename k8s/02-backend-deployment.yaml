@@ -25,13 +25,17 @@ spec:
           value: "postgres://postgres:postgres@postgres-0.postgres-service:5432/translations"
         - name: TRANSLATOR_HOST
           value: "translator-service"
+        # --- עדכון הבדיקות ל-HTTP לפי האתגר של הדף ---
         readinessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health
             port: 3001
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 3
         livenessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health
             port: 3001
           initialDelaySeconds: 15
           periodSeconds: 20

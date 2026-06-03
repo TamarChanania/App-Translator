@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: valuse.
+  name: valuse
 spec:
-  replicas: {{ .Values.backend.replicaCount }}
+  replicas: {{ .Values.backend.replicas }}
   selector:
     matchLabels:
       app: backend
@@ -15,7 +15,7 @@ spec:
       containers:
       - name: backend
         image: "{{ .Values.backend.image }}"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: {{ .Values.backend.port }}
         env:
