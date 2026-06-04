@@ -2,7 +2,7 @@ name: ci-frontend
 
 on:
   push:
-    branches: [main]
+    branches: [main, ci/cd]
     paths:
       - 'frontend/**'
       - '.github/workflows/ci-frontend.yaml'
@@ -18,29 +18,42 @@ permissions:
   contents: write
 
 jobs:
-  deploy:
-    name: Deploy to S3
+  build:
+    name: Build Frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: Configure AWS credentials via OIDC
+      - name: Verify files
+        run: |
+          ls -la frontend/
+          echo "Frontend files verified"
+
+  deploy:
+    name: Deploy to S3
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci/cd')
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::048408301771:role/github-actions-s3-role
-          aws-region: eu-north-1
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Deploy to S3
+      - name: Sync to S3
         run: |
-          aws s3 sync ./frontend s3://app-translator-frontend-048408301771-eu-north-1-an \
+          aws s3 sync frontend/ s3://${{ secrets.S3_BUCKET_NAME }}/ \
             --delete \
+            --exclude "*.test.js" \
             --exclude "Dockerfile" \
-            --exclude "nginx.conf"
-
-      - name: Print website URL
-        run: |
-          echo "✅ Frontend deployed!"
-          echo "🌍 URL: http://app-translator-frontend-048408301771-eu-north-1-an.s3-website.eu-north-1.amazonaws.com"
+            --exclude ".dockerignore" \
+            --exclude "nginx*.conf"
+          echo "✅ Deployed to S3!"
 
   tagging:
     name: Create Git Tag
