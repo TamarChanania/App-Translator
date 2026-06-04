@@ -55,6 +55,29 @@ jobs:
             --exclude "nginx*.conf"
           echo "✅ Deployed to S3!"
 
+      # -------------------------------------------------------
+      # שדרוג אבטחה - CloudFront + OAC (לא הופעל - דורש תשלום)
+      # -------------------------------------------------------
+      # בסביבת production היינו מוסיפים CloudFront מול ה-S3:
+      # 1. סוגרים את ה-S3 לגישה ציבורית
+      # 2. יוצרים CloudFront Distribution עם OAC
+      # 3. רק CloudFront מורשה לגשת ל-S3
+      # 4. המשתמשים ניגשים רק דרך CloudFront ולא ישירות ל-S3
+      #
+      # היתרונות:
+      # - אבטחה: S3 פרטי לחלוטין
+      # - מהירות: cache גלובלי קרוב למשתמש
+      # - זמינות: גם אם S3 נופל, ה-cache עובד
+      #
+      # הקוד שהיה נוסף:
+      # - name: Invalidate CloudFront cache
+      #   run: |
+      #     aws cloudfront create-invalidation \
+      #       --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+      #       --paths "/*"
+      #     echo "CloudFront cache cleared"
+      # -------------------------------------------------------
+
   tagging:
     name: Create Git Tag
     runs-on: ubuntu-latest
