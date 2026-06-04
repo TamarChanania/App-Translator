@@ -1,195 +1,64 @@
 # 🌐 App Translator — Full DevOps Project
 
-A full-stack translation application built with a complete DevOps pipeline including CI/CD, containerization, Kubernetes orchestration, and AWS cloud deployment.
+A full-stack translation application — built step by step, from a single Docker container all the way to a full CI/CD pipeline with Kubernetes and AWS.
+
+The goal wasn't just to make it work. It was to build it the **right way** — secure, automated, and production-ready.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🧩 The Application
 
-```
-User
- │
- ▼
-S3 (Frontend - Static Website)
- │
- ▼
-EC2 (Backend - Node.js API)
- │
- ├──► PostgreSQL (Database)
- │
- └──► LibreTranslate (Translation Engine)
-```
+A simple translation app:
+- User types text
+- Selects a target language
+- Gets a translation powered by LibreTranslate
+- Every translation is saved to PostgreSQL and shown in history
+
+Simple idea. Complex infrastructure.
 
 ---
 
-## 🛠️ Tech Stack
+## 🏗️ How It Was Built — The Evolution
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | HTML, JavaScript, Nginx |
-| Backend | Node.js, Express |
-| Database | PostgreSQL 15 |
-| Translation Engine | LibreTranslate |
-| Containerization | Docker, Docker Compose |
-| Orchestration | Kubernetes + Helm |
-| CI/CD | GitHub Actions |
-| Cloud | AWS (S3, EC2, ECR) |
-| Auth | AWS OIDC (no static credentials) |
+### Stage 1 — Making It Work (Docker Compose)
+
+The first goal was simple: get all services talking to each other.
+
+```
+User → Frontend (Nginx) → Backend (Node.js) → PostgreSQL
+                                             → LibreTranslate
+```
+
+Everything ran in a single `docker-compose.yml` with a shared bridge network called `appnet`.
+No automation. No CI. Just `docker compose up` and see if it works.
+
+This stage taught the fundamentals — how services discover each other, how volumes work, and why health checks matter (the backend kept crashing because it tried to connect to PostgreSQL before it was ready).
 
 ---
 
-## 📁 Project Structure
+### Stage 2 — Custom Dockerfiles
+
+The next problem: the services were using generic images. Time to build our own.
 
 ```
-App-Translator/
-├── .github/
-│   └── workflows/
-│       ├── ci-frontend.yaml     # CI/CD for frontend → S3
-│       └── ci-backend.yaml      # CI/CD for backend → ECR → EC2
-├── frontend/
-│   ├── index.html
-│   ├── script.js
-│   ├── nginx.conf
-│   └── Dockerfile
-├── backend/
-│   ├── server.js
-│   ├── server.test.js
-│   ├── server.integration.test.js
-│   ├── package.json
-│   └── Dockerfile
-├── db/
-│   └── init.sql
-├── k8s/
-│   ├── 02-backend-deployment.yaml
-│   ├── 03-database.yaml
-│   ├── 04-volumes.yaml
-│   ├── 05-frontend.yaml
-│   ├── 06-translator.yaml
-│   ├── 07-ingress.yaml
-│   ├── backend-configmap.yml
-│   └── backend-service.yml
-├── helm/
-│   ├── Chart.yaml
-│   ├── values.yaml
-│   └── templates/
-├── docker-compose.yml
-└── docker-compose.test.yml
+frontend/Dockerfile  →  nginx:alpine + static files
+backend/Dockerfile   →  node:18-alpine + server.js
 ```
+
+This gave full control over what goes into each image — smaller, faster, more secure.
 
 ---
 
-## 🚀 CI/CD Pipelines
+### Stage 3 — Full Docker Compose
 
-### Frontend Pipeline (`ci-frontend.yaml`)
+With custom Dockerfiles in place, the `docker-compose.yml` was updated to build from local code instead of pulling images.
 
-```
-Push to main
-    ↓
-Build — Verify frontend files
-    ↓
-Deploy to S3 (via OIDC — no static credentials)
-    ↓
-Git Tag (auto versioning)
-```
+Added:
+- `healthcheck` on PostgreSQL so the backend waits for it properly
+- `init.sql` mounted as a volume to auto-create the database schema
+- `docker-compose.test.yml` — a separate compose file for running integration tests in isolation
 
-**Key features:**
-- Uses AWS OIDC for secure authentication (no Access Keys)
-- Syncs only relevant files to S3 (excludes Dockerfile, nginx.conf)
-- Auto versioning with Git tags
-
----
-
-### Backend Pipeline (`ci-backend.yaml`)
-
-```
-Push to main/ci-cd
-    ↓
-Unit Tests (Node.js)
-    ↓
-Build Docker Image
-    ↓
-Integration Tests (Docker Compose)
-    ↓
-Push to ECR (AWS Elastic Container Registry)
-    ↓
-CD — Deploy to EC2 via SSH        ← Continuous Deployment
-    ↓
-Git Tag (auto versioning)
-```
-
-**Key features:**
-- Full test suite before any deployment
-- Docker image pushed to private AWS ECR (not DockerHub)
-- Automatic deployment to EC2 on every push to main
-- Zero-downtime via `docker compose up -d`
-- OIDC authentication — no hardcoded credentials anywhere
-
----
-
-## ☸️ Kubernetes Deployment
-
-The application is fully orchestrated with Kubernetes:
-
-| Resource | Type | Description |
-|----------|------|-------------|
-| backend | Deployment | Node.js API (2 replicas) |
-| frontend | Deployment | Nginx static server |
-| translator | Deployment | LibreTranslate engine |
-| postgres | StatefulSet | PostgreSQL with persistent storage |
-| backend-service | ClusterIP | Internal backend routing |
-| frontend-service | ClusterIP | Internal frontend routing |
-| postgres-service | Headless | Stable DB DNS |
-| ingress | Nginx Ingress | Routes `/api/*` → backend, `/` → frontend |
-
-### Deploy with Kubernetes:
-```bash
-kubectl apply -f k8s/
-```
-
-### Deploy with Helm:
-```bash
-helm install app-translator ./helm
-```
-
----
-
-## ☁️ AWS Infrastructure
-
-| Service | Usage |
-|---------|-------|
-| S3 | Frontend static website hosting |
-| EC2 (t3.micro) | Backend runtime (Docker) |
-| ECR | Private Docker image registry |
-| IAM OIDC | Secure GitHub Actions authentication |
-| IAM Role | `github-actions-s3-role` with minimal permissions |
-
-### Security highlights:
-- ✅ No static AWS credentials — uses OIDC tokens
-- ✅ IAM Role with least-privilege permissions
-- ✅ S3 Bucket Policy restricts to `s3:GetObject` only
-- ✅ SSH key stored as GitHub Secret only
-- ✅ EC2 IAM Role with ECR read-only access
-
----
-
-## 🔐 GitHub Secrets Required
-
-| Secret | Description |
-|--------|-------------|
-| `AWS_ROLE_ARN` | IAM Role ARN for OIDC |
-| `AWS_REGION` | AWS region (eu-north-1) |
-| `S3_BUCKET_NAME` | Frontend S3 bucket name |
-| `ECR_REGISTRY` | ECR registry URL |
-| `EC2_HOST` | EC2 public DNS |
-| `EC2_SSH_KEY` | EC2 private key (.pem content) |
-| `DOCKERHUB_USERNAME` | DockerHub username |
-| `DOCKERHUB_TOKEN` | DockerHub access token |
-
----
-
-## 🏃 Run Locally
-
-### With Docker Compose:
+**Run locally:**
 ```bash
 docker compose up -d
 ```
@@ -200,35 +69,185 @@ docker compose up -d
 | Backend | http://localhost:3001 |
 | LibreTranslate | http://localhost:5000 |
 
-### Run Tests:
-```bash
-# Unit tests
-cd backend && npm test
+---
 
-# Integration tests
-docker compose -f docker-compose.test.yml up --abort-on-container-exit
+### Stage 4 — Kubernetes
+
+Docker Compose is great for local development — but it runs on one machine. What happens when that machine goes down?
+
+The answer: **Kubernetes**.
+
+The entire application was migrated from Docker Compose to Kubernetes manifests:
+
+```
+User
+  ↓
+Ingress (nginx) — routes traffic
+  ↓
+/        → frontend-service  → Deployment (Nginx)
+/api/*   → backend-service   → Deployment (Node.js)
+                                    ↓
+                             translator-service → Deployment (LibreTranslate)
+                                    ↓
+                             postgres-service (Headless)
+                                    ↓
+                             StatefulSet (PostgreSQL) → PersistentVolume
+```
+
+Key decisions made here:
+- PostgreSQL runs as a **StatefulSet** (not a Deployment) because it needs stable storage and a stable network identity
+- Database credentials stored in a **Secret** (base64 encoded)
+- DB schema injected via **ConfigMap** instead of hardcoding
+- **Liveness & Readiness probes** on every service — Kubernetes needs to know when a pod is healthy
+
+```bash
+kubectl apply -f k8s/
 ```
 
 ---
 
-## 🔄 How It Works
+### Stage 5 — Helm Chart
 
-1. User visits the frontend (S3)
-2. Types text and clicks "Translate"
-3. Request goes to `/api/translate` → EC2 Backend
-4. Backend calls LibreTranslate for translation
-5. Result is saved to PostgreSQL
-6. Translation is returned to the user
-7. History is loaded from the database
+After writing all the Kubernetes YAML manually, a new problem appeared: every environment (dev, staging, prod) needed the same manifests with different values.
+
+The solution: **Helm** — package the entire Kubernetes setup as a reusable chart.
+
+```
+helm/
+├── Chart.yaml
+├── values.yaml        ← single source of truth for all config
+└── templates/         ← parametrized Kubernetes manifests
+```
+
+Now deploying to any environment is one command:
+```bash
+helm install app-translator ./helm
+```
+
+---
+
+### Stage 6 — CI/CD with GitHub Actions
+
+This is where everything came together.
+
+The problem with the previous stages: every change required manual steps — build the image, push it, apply the manifests. Human error was inevitable.
+
+The solution: **automate everything**.
+
+#### Frontend Pipeline
+
+```
+Push to main (frontend/** changes)
+    ↓
+Verify frontend files exist
+    ↓
+Authenticate to AWS via OIDC (no passwords, no Access Keys)
+    ↓
+Sync files to S3 (static website hosting)
+    ↓
+Auto Git Tag (versioning)
+```
+
+Why S3 instead of Kubernetes for the frontend?
+The frontend is just static files — HTML and JavaScript. There's no reason to run a container for that. S3 is cheaper, faster, and requires zero maintenance.
+
+#### Backend Pipeline
+
+```
+Push to main (backend/** changes)
+    ↓
+Unit Tests
+    ↓
+Build Docker Image
+    ↓
+Integration Tests (full stack with Docker Compose)
+    ↓
+Push image to ECR (AWS private registry)
+    ↓
+SSH into EC2 → pull new image → restart container   ← CD
+    ↓
+Auto Git Tag (versioning)
+```
+
+Why ECR instead of DockerHub?
+ECR is private by default and lives inside AWS — the same place as the EC2 server. No external registry, no public image, tighter security.
+
+---
+
+## 🔐 Security Decisions
+
+Every security decision in this project was intentional:
+
+| Decision | Why |
+|----------|-----|
+| AWS OIDC instead of Access Keys | Access Keys can leak. OIDC tokens are temporary and auto-expire |
+| IAM Role with minimal permissions | Only `s3:PutObject`, `s3:DeleteObject`, `s3:GetObject`, `s3:ListBucket` — nothing more |
+| ECR instead of public DockerHub | Docker images stay private inside AWS |
+| SSH key stored as GitHub Secret | Never committed to code |
+| EC2 IAM Role for ECR access | EC2 pulls images without any credentials in the code |
+
+---
+
+## ☁️ AWS Infrastructure
+
+| Service | Usage |
+|---------|-------|
+| S3 | Frontend static website |
+| EC2 (t3.micro) | Backend runtime (Docker) |
+| ECR | Private Docker image registry |
+| IAM OIDC Provider | Secure GitHub Actions auth |
+| IAM Role | `github-actions-s3-role` — minimal permissions |
+
+---
+
+## 🔐 GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `AWS_ROLE_ARN` | IAM Role for OIDC |
+| `AWS_REGION` | `eu-north-1` |
+| `S3_BUCKET_NAME` | Frontend bucket |
+| `ECR_REGISTRY` | ECR registry URL |
+| `EC2_HOST` | EC2 public DNS |
+| `EC2_SSH_KEY` | EC2 private key |
+| `DOCKERHUB_USERNAME` | DockerHub username |
+| `DOCKERHUB_TOKEN` | DockerHub token |
+
+---
+
+## 📁 Project Structure
+
+```
+App-Translator/
+├── .github/workflows/
+│   ├── ci-frontend.yaml    # Frontend CI/CD → S3
+│   └── ci-backend.yaml     # Backend CI/CD → ECR → EC2
+├── frontend/               # Nginx + static files
+├── backend/                # Node.js API + tests
+├── db/                     # init.sql schema
+├── k8s/                    # Kubernetes manifests
+├── helm/                   # Helm chart
+├── docker-compose.yml
+└── docker-compose.test.yml
+```
+
+---
+
+## 🏃 Run Locally
+
+```bash
+docker compose up -d
+```
 
 ---
 
 ## 📌 Key DevOps Concepts Applied
 
-- **CI/CD** — Automated testing and deployment on every push
-- **Infrastructure as Code** — Kubernetes manifests + Helm charts
+- **Containerization** — every service runs in Docker
+- **Orchestration** — Kubernetes manages scaling, health, and networking
+- **Infrastructure as Code** — K8s manifests + Helm charts
+- **CI/CD** — every push triggers automated tests and deployment
 - **Least Privilege** — IAM roles with minimal permissions
-- **Secrets Management** — GitHub Secrets + AWS OIDC
-- **Health Checks** — Liveness & Readiness probes on all services
-- **Auto Versioning** — Git tags created automatically after each successful deploy
-- **Containerization** — All services run in Docker containers
+- **Secrets Management** — OIDC + GitHub Secrets, zero hardcoded credentials
+- **Health Checks** — Liveness & Readiness probes on every service
+- **Auto Versioning** — Git tags after every successful deploy
