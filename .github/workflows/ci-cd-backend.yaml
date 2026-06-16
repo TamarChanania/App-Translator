@@ -1,11 +1,11 @@
-name: CI Backend
+name: CI/CD Backend
 
 on:
   push:
     branches: [main, ci/cd]
     paths:
       - 'backend/**'
-      - '.github/workflows/ci-backend.yaml'
+      - '.github/workflows/ci-cd-backend.yaml'
   pull_request:
     branches: [main]
     paths:
